@@ -1,11 +1,11 @@
 const std = @import("std");
 const testing = std.testing;
 
-const jsmn = @import("jsmn.zig");
-const Parser = jsmn.Parser;
-const Error = jsmn.Error;
-const Token = jsmn.Token;
-const Type = jsmn.Type;
+const hocon = @import("hocon.zig");
+const Parser = hocon.Parser;
+const Error = hocon.Error;
+const Token = hocon.Token;
+const Type = hocon.Type;
 
 fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comptime result: anytype, strict: bool) anyerror!void {
     var tokens: [numtok]Token = undefined;

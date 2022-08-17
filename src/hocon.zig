@@ -1,5 +1,5 @@
 const std = @import("std");
-const testing = std.testing;
+const assert = std.debug.assert;
 
 /// JSON type identifier. Basic types are:
 ///  * Object
@@ -35,11 +35,72 @@ pub const Token = struct {
     parent: isize,
 
     /// Fills token type and boundaries.
-    fn fill(token: *Token, typ: Type, start: isize, end: isize) void {
-        token.typ = typ;
-        token.start = start;
-        token.end = end;
-        token.size = 0;
+    fn fill(self: *Token, typ: Type, start: isize, end: isize) void {
+        self.typ = typ;
+        self.start = start;
+        self.end = end;
+        self.size = 0;
+    }
+
+    pub fn serialize(self: *const Token, bytes: []const u8, writer: anytype) anyerror!usize {
+        var count: usize = 0;
+
+        switch (self.typ) {
+            .UNDEFINED => unreachable,
+            .OBJECT => {
+                count += try writer.write("{");
+
+                var tokens = @ptrCast([*]const Token, self) + 1;
+                var num = self.size;
+                var index: usize = 0;
+                while (num > 0) : ({
+                    num -= 1;
+                    index += 1;
+                }) {
+                    var t = &tokens[index];
+                    if (t.typ == .STRING) {
+                        count += try t.serialize(bytes, writer);
+                        count += try writer.write(":");
+                        index += 1;
+                        t = &tokens[index];
+                        count += try t.serialize(bytes, writer);
+                    } else {
+                        count += try t.serialize(bytes, writer);
+                    }
+
+                    if (num > 1) {
+                        count += try writer.write(",");
+                    }
+                }
+
+                count += try writer.write("}");
+            },
+            .ARRAY => {
+                count += try writer.write("[");
+
+                var tokens = @ptrCast([*]const Token, self) + 1;
+                var index: usize = 0;
+                while (index < self.size) : (index += 1) {
+                    var t = &tokens[index];
+                    count += try t.serialize(bytes, writer);
+                    if (index < self.size - 1) {
+                        count += try writer.write(",");
+                    }
+                }
+
+                count += try writer.write("]");
+            },
+            .STRING => {
+                count += try writer.write("\"");
+                count += try writer.write(bytes[@intCast(usize, self.start)..@intCast(usize, self.end)]);
+                count += try writer.write("\"");
+            },
+            .PRIMITIVE => {
+                count += try writer.write(bytes[@intCast(usize, self.start)..@intCast(usize, self.end)]);
+            },
+        }
+
+        return count;
     }
 };
 
@@ -297,20 +358,20 @@ pub const Parser = struct {
     }
 };
 
-test "example" {
-    var parser: Parser = undefined;
-    const json =
-        \\{ "name" : "Jack", "age" : 27 }
-    ;
+/// Writes JSON representation of tokens.
+/// caller owns the returned memory
+pub fn serialize(tokens: []Token, bytes: []const u8, allocator: std.mem.Allocator) ![]u8 {
+    var out = std.ArrayList(u8).init(allocator);
+    defer out.deinit();
 
-    // count tokens needed to parse
-    parser.init();
-    const count = try parser.parse(json, null);
-    try testing.expectEqual(count, 5);
+    const writer = out.writer();
 
-    // and parse to tokens
-    var tokens: [5]Token = undefined;
-    parser.init();
-    const r2 = try parser.parse(json, &tokens);
-    try testing.expectEqual(r2, 5);
+    var count: usize = 0;
+    if (tokens.len > 0) {
+        count = try tokens[0].serialize(bytes, writer);
+    }
+
+    const ret = out.toOwnedSlice();
+    assert(ret.len == count);
+    return ret;
 }

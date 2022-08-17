@@ -5,16 +5,17 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const lib = b.addStaticLibrary("jsmn", "src/jsmn.zig");
+    const lib = b.addStaticLibrary("hocon", "src/hocon.zig");
     lib.setBuildMode(mode);
     lib.install();
 
-    const main_tests = b.addTest("src/jsmn.zig");
-    main_tests.setBuildMode(mode);
-    const test_tests = b.addTest("src/tests.zig");
-    test_tests.setBuildMode(mode);
+    const parser_tests = b.addTest("src/tests_parser.zig");
+    parser_tests.setBuildMode(mode);
+
+    const serializer_tests = b.addTest("src/tests_serializer.zig");
+    serializer_tests.setBuildMode(mode);
 
     const test_step = b.step("test", "Run library tests");
-    test_step.dependOn(&main_tests.step);
-    test_step.dependOn(&test_tests.step);
+    test_step.dependOn(&parser_tests.step);
+    test_step.dependOn(&serializer_tests.step);
 }
