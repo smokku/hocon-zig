@@ -41,67 +41,6 @@ pub const Token = struct {
         self.end = end;
         self.size = 0;
     }
-
-    pub fn serialize(self: *const Token, bytes: []const u8, writer: anytype) anyerror!usize {
-        var count: usize = 0;
-
-        switch (self.typ) {
-            .UNDEFINED => unreachable,
-            .OBJECT => {
-                count += try writer.write("{");
-
-                var tokens = @ptrCast([*]const Token, self) + 1;
-                var num = self.size;
-                var index: usize = 0;
-                while (num > 0) : ({
-                    num -= 1;
-                    index += 1;
-                }) {
-                    var t = &tokens[index];
-                    if (t.typ == .STRING) {
-                        count += try t.serialize(bytes, writer);
-                        count += try writer.write(":");
-                        index += 1;
-                        t = &tokens[index];
-                        count += try t.serialize(bytes, writer);
-                    } else {
-                        count += try t.serialize(bytes, writer);
-                    }
-
-                    if (num > 1) {
-                        count += try writer.write(",");
-                    }
-                }
-
-                count += try writer.write("}");
-            },
-            .ARRAY => {
-                count += try writer.write("[");
-
-                var tokens = @ptrCast([*]const Token, self) + 1;
-                var index: usize = 0;
-                while (index < self.size) : (index += 1) {
-                    var t = &tokens[index];
-                    count += try t.serialize(bytes, writer);
-                    if (index < self.size - 1) {
-                        count += try writer.write(",");
-                    }
-                }
-
-                count += try writer.write("]");
-            },
-            .STRING => {
-                count += try writer.write("\"");
-                count += try writer.write(bytes[@intCast(usize, self.start)..@intCast(usize, self.end)]);
-                count += try writer.write("\"");
-            },
-            .PRIMITIVE => {
-                count += try writer.write(bytes[@intCast(usize, self.start)..@intCast(usize, self.end)]);
-            },
-        }
-
-        return count;
-    }
 };
 
 /// JSON parser. Contains an array of token blocks available. Also stores
@@ -358,6 +297,49 @@ pub const Parser = struct {
     }
 };
 
+fn serializeToken(i: usize, tokens: []const Token, bytes: []const u8, writer: anytype) anyerror!usize {
+    const token = &tokens[i];
+    var num = token.size;
+    var next = i + 1;
+
+    switch (token.typ) {
+        .UNDEFINED => unreachable,
+        .PRIMITIVE => {
+            _ = try writer.write(bytes[@intCast(usize, token.start)..@intCast(usize, token.end)]);
+        },
+        .STRING => {
+            _ = try writer.write("\"");
+            _ = try writer.write(bytes[@intCast(usize, token.start)..@intCast(usize, token.end)]);
+            _ = try writer.write("\"");
+
+            while (num > 0 and next < tokens.len) : (num -= 1) {
+                _ = try writer.write(":");
+                next = try serializeToken(next, tokens, bytes, writer);
+            }
+        },
+        .ARRAY => {
+            _ = try writer.write("[");
+            while (num > 0 and next < tokens.len) : (num -= 1) {
+                if (num != token.size)
+                    _ = try writer.write(",");
+                next = try serializeToken(next, tokens, bytes, writer);
+            }
+            _ = try writer.write("]");
+        },
+        .OBJECT => {
+            _ = try writer.write("{");
+            while (num > 0 and next < tokens.len) : (num -= 1) {
+                if (num != token.size)
+                    _ = try writer.write(",");
+                next = try serializeToken(next, tokens, bytes, writer);
+            }
+            _ = try writer.write("}");
+        },
+    }
+
+    return next;
+}
+
 /// Writes JSON representation of tokens.
 /// caller owns the returned memory
 pub fn serialize(tokens: []Token, bytes: []const u8, allocator: std.mem.Allocator) ![]u8 {
@@ -366,12 +348,9 @@ pub fn serialize(tokens: []Token, bytes: []const u8, allocator: std.mem.Allocato
 
     const writer = out.writer();
 
-    var count: usize = 0;
-    if (tokens.len > 0) {
-        count = try tokens[0].serialize(bytes, writer);
+    var index: usize = 0;
+    while (index < tokens.len) {
+        index = try serializeToken(index, tokens, bytes, writer);
     }
-
-    const ret = out.toOwnedSlice();
-    assert(ret.len == count);
-    return ret;
+    return out.toOwnedSlice();
 }
