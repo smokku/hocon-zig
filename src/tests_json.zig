@@ -7,13 +7,14 @@ const Error = hocon.Error;
 const Token = hocon.Token;
 const Type = hocon.Type;
 
-fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comptime result: anytype, strict: bool) anyerror!void {
+pub fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comptime result: anytype, strict: bool) anyerror!void {
     var tokens: [numtok]Token = undefined;
     var p: Parser = undefined;
 
     p.init();
     p.strict = strict;
     const r = p.parse(json, &tokens);
+    // if (r) |c| std.debug.print("{any}\n", .{tokens[0..c]}) else |_| {}
     try testing.expectEqual(status, r);
 
     if (status) |count| {
@@ -35,7 +36,7 @@ fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comptime
                 }
                 try testing.expectEqual(@as(usize, res[3]), tk.size);
             },
-            Type.STRING, Type.PRIMITIVE => {
+            Type.STRING, Type.PRIMITIVE, Type.COMMENT => {
                 const value = json[@intCast(usize, tk.start)..@intCast(usize, tk.end)];
                 try testing.expectFmt(res[1], "{s}", .{value});
                 if (typ == Type.STRING)
@@ -246,7 +247,7 @@ test "for unmatched brackets" {
 
 test "for key type" {
     var js: []const u8 = "{\"key\": 1}";
-    try parse(js, 3, 3, .{ .{ Type.OBJECT, 0, 10, 1 }, .{ Type.STRING, "key", 1 }, .{ Type.PRIMITIVE, "1" } }, false);
+    try parse(js, 3, 3, .{ .{ Type.OBJECT, 0, 10, 1 }, .{ Type.STRING, "key", 1 }, .{ Type.PRIMITIVE, "1" } }, true);
     js = "{true: 1}";
     try parse(js, Error.INVAL, 3, .{}, true);
     js = "{1: 1}";

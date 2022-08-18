@@ -9,7 +9,7 @@ Parser is based on Serge Zaitsev's [jsmn](https://github.com/zserge/jsmn) JSON p
 <https://github.com/lightbend/config/blob/master/HOCON.md>
 
 - [x] parsing JSON
-- [ ] comments
+- [x] comments
 - [ ] omit root braces
 - [ ] key-value separator
 - [ ] commas are optional if newline is present

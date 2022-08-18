@@ -12,6 +12,7 @@ pub const Type = enum {
     ARRAY,
     STRING,
     PRIMITIVE,
+    COMMENT,
 };
 
 pub const Error = error{
@@ -150,6 +151,17 @@ pub const Parser = struct {
                         tokens.?[@intCast(usize, parser.toksuper)].size += 1;
                     }
                 },
+                '#', '/' => {
+                    // look ahead for second /
+                    if (c == '/' and parser.pos + 1 < js.len and js[@intCast(usize, parser.pos + 1)] == '/') {
+                        parser.pos += 1;
+                    }
+                    try parser.parseComment(js, tokens);
+                    count += 1;
+                    if (parser.toksuper != -1 and tokens != null) {
+                        tokens.?[@intCast(usize, parser.toksuper)].size += 1;
+                    }
+                },
                 else => {
                     if (parser.strict) {
                         // Unexpected char in strict mode
@@ -281,6 +293,33 @@ pub const Parser = struct {
         return Error.PART;
     }
 
+    /// Fills next token with comment string.
+    fn parseComment(parser: *Parser, js: []const u8, tokens: ?[]Token) Error!void {
+        const start = parser.pos;
+
+        // Skip comment char
+        parser.pos += 1;
+
+        while (parser.pos < js.len and js[@intCast(usize, parser.pos)] != 0) : (parser.pos += 1) {
+            const c = js[@intCast(usize, parser.pos)];
+
+            // end of line
+            if (c == '\n') {
+                if (tokens) |toks| {
+                    const token = parser.allocToken(toks) catch {
+                        parser.pos = start;
+                        return Error.NOMEM;
+                    };
+                    token.fill(.COMMENT, start + 1, parser.pos);
+                    token.parent = parser.toksuper;
+                }
+                return;
+            }
+        }
+        parser.pos = start;
+        return Error.PART;
+    }
+
     /// Allocates a fresh unused token from the token pool.
     fn allocToken(parser: *Parser, tokens: []Token) Error!*Token {
         if (parser.toknext >= tokens.len) {
@@ -313,14 +352,15 @@ fn serializeToken(i: usize, tokens: []const Token, bytes: []const u8, writer: an
             _ = try writer.write("\"");
 
             while (num > 0 and next < tokens.len) : (num -= 1) {
-                _ = try writer.write(":");
+                if (tokens[next].typ != .COMMENT)
+                    _ = try writer.write(":");
                 next = try serializeToken(next, tokens, bytes, writer);
             }
         },
         .ARRAY => {
             _ = try writer.write("[");
             while (num > 0 and next < tokens.len) : (num -= 1) {
-                if (num != token.size)
+                if (num != token.size and tokens[next].typ != .COMMENT)
                     _ = try writer.write(",");
                 next = try serializeToken(next, tokens, bytes, writer);
             }
@@ -329,12 +369,13 @@ fn serializeToken(i: usize, tokens: []const Token, bytes: []const u8, writer: an
         .OBJECT => {
             _ = try writer.write("{");
             while (num > 0 and next < tokens.len) : (num -= 1) {
-                if (num != token.size)
+                if (num != token.size and tokens[next].typ != .COMMENT)
                     _ = try writer.write(",");
                 next = try serializeToken(next, tokens, bytes, writer);
             }
             _ = try writer.write("}");
         },
+        .COMMENT => {},
     }
 
     return next;
