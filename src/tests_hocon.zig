@@ -36,3 +36,21 @@ test "for comments" {
     ;
     try serialize(9, expected, js);
 }
+
+test "for unquoted strings" {
+    var js =
+        \\{
+        \\  "key": value,
+        \\}
+    ;
+    try parse(js, 3, 128, .{
+        .{ Type.OBJECT, 0, 19, 1 },
+        .{ Type.STRING, "key", 1 },
+        .{ Type.STRING, "value", 0 },
+    });
+
+    const expected =
+        \\{"key":"value"}
+    ;
+    try serialize(3, expected, js);
+}

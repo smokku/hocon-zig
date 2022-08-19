@@ -144,20 +144,32 @@ pub const Parser = struct {
                         tokens.?[@intCast(usize, parser.toksuper)].size += 1;
                     }
                 },
-                '#', '/' => {
-                    // look ahead for second /
-                    if (c == '/' and parser.pos + 1 < js.len and js[@intCast(usize, parser.pos + 1)] == '/') {
-                        parser.pos += 1;
-                    }
+                '#' => {
                     try parser.parseComment(js, tokens);
                     count += 1;
                     if (parser.toksuper != -1 and tokens != null) {
                         tokens.?[@intCast(usize, parser.toksuper)].size += 1;
                     }
                 },
+                '/' => {
+                    // look ahead for second "/"
+                    if (parser.pos + 1 < js.len and js[@intCast(usize, parser.pos + 1)] == '/') {
+                        parser.pos += 1;
+                        try parser.parseComment(js, tokens);
+                    } else {
+                        try parser.parseUnquotedString(js, tokens);
+                    }
+                    count += 1;
+                    if (parser.toksuper != -1 and tokens != null) {
+                        tokens.?[@intCast(usize, parser.toksuper)].size += 1;
+                    }
+                },
                 else => {
-                    // Unexpected char
-                    return Error.INVAL;
+                    try parser.parseUnquotedString(js, tokens);
+                    count += 1;
+                    if (parser.toksuper != -1 and tokens != null) {
+                        tokens.?[@intCast(usize, parser.toksuper)].size += 1;
+                    }
                 },
             }
         }
@@ -266,6 +278,61 @@ pub const Parser = struct {
                         return Error.INVAL;
                     },
                 }
+            }
+        }
+        parser.pos = start;
+        return Error.PART;
+    }
+
+    /// Fills next token with unquoted string.
+    fn parseUnquotedString(parser: *Parser, js: []const u8, tokens: ?[]Token) Error!void {
+        const start = parser.pos;
+
+        while (parser.pos < js.len and js[@intCast(usize, parser.pos)] != 0) : (parser.pos += 1) {
+            const c = js[@intCast(usize, parser.pos)];
+            switch (c) {
+                // zig fmt: off
+                // forbidden characters: end of string
+                '$', '"', '{', '}', '[', ']', ':', '=', ',', '+', '#', '`', '^', '?', '!', '@', '*', '&', '\\',
+                // whitespace: end of string
+                ' ', '\t', '\n', 0x0B, 0x0C, '\r', 0x1C, 0x1D, 0x1E, 0x1F, 0xFE, 0xFF,
+                // "//"" (double slash) starts a comment: end of string
+                '/' => {
+                    // zig fmt: on
+
+                    // look ahead for second / - if not there continue with the string
+                    if (c == '/' and (parser.pos + 1 >= js.len or js[@intCast(usize, parser.pos + 1)] != '/')) continue;
+
+                    if (tokens) |toks| {
+                        const token = parser.allocToken(toks) catch {
+                            parser.pos = start;
+                            return Error.NOMEM;
+                        };
+                        token.fill(.STRING, start, parser.pos);
+                        token.parent = parser.toksuper;
+                    }
+                    return;
+                },
+                else => {
+                    // initial characters `true`, `false`, `null` parse as primitive
+                    const count = parser.pos - start;
+                    if ((count == 4 and
+                        (std.mem.eql(u8, js[@intCast(usize, start)..@intCast(usize, parser.pos)], "true") or
+                        std.mem.eql(u8, js[@intCast(usize, start)..@intCast(usize, parser.pos)], "null"))) or
+                        (count == 5 and
+                        (std.mem.eql(u8, js[@intCast(usize, start)..@intCast(usize, parser.pos)], "false"))))
+                    {
+                        if (tokens) |toks| {
+                            const token = parser.allocToken(toks) catch {
+                                parser.pos = start;
+                                return Error.NOMEM;
+                            };
+                            token.fill(.PRIMITIVE, start, parser.pos);
+                            token.parent = parser.toksuper;
+                        }
+                        return;
+                    }
+                },
             }
         }
         parser.pos = start;

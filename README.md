@@ -15,7 +15,7 @@ Parser is based on Serge Zaitsev's [jsmn](https://github.com/zserge/jsmn) JSON p
 - [ ] commas are optional if newline is present
 - [ ] whitespace
 - [ ] duplicate keys and object merging
-- [ ] unquoted strings
+- [x] unquoted strings
 - [ ] multi-line strings
 - [ ] value concatenation
 - [ ] object concatenation
