@@ -47,8 +47,6 @@ pub const Token = struct {
 /// JSON parser. Contains an array of token blocks available. Also stores
 /// the string being parsed now and current position in that string.
 pub const Parser = struct {
-    strict: bool,
-
     pos: isize,
     toknext: isize,
     toksuper: isize,
@@ -72,13 +70,10 @@ pub const Parser = struct {
                         const token = try parser.allocToken(toks);
                         if (parser.toksuper != -1) {
                             const t = &toks[@intCast(usize, parser.toksuper)];
-                            if (parser.strict) {
-                                // In strict mode an object or array can't become a key
-                                if (t.typ == .OBJECT) {
-                                    return Error.INVAL;
-                                }
+                            // Object or array can't become a key
+                            if (t.typ == .OBJECT) {
+                                return Error.INVAL;
                             }
-
                             t.size += 1;
                             token.parent = parser.toksuper;
                         }
@@ -133,16 +128,14 @@ pub const Parser = struct {
                     }
                 },
                 '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 't', 'f', 'n' => {
-                    // In strict mode primitives are: numbers and booleans
-                    if (parser.strict) {
-                        // And they must not be keys of the object
-                        if (tokens != null and parser.toksuper != -1) {
-                            const t = &tokens.?[@intCast(usize, parser.toksuper)];
-                            if (t.typ == .OBJECT or
-                                (t.typ == .STRING and t.size != 0))
-                            {
-                                return Error.INVAL;
-                            }
+                    // Primitives are: numbers and booleans
+                    // And they must not be keys of the object
+                    if (tokens != null and parser.toksuper != -1) {
+                        const t = &tokens.?[@intCast(usize, parser.toksuper)];
+                        if (t.typ == .OBJECT or
+                            (t.typ == .STRING and t.size != 0))
+                        {
+                            return Error.INVAL;
                         }
                     }
                     try parser.parsePrimitive(js, tokens);
@@ -163,16 +156,8 @@ pub const Parser = struct {
                     }
                 },
                 else => {
-                    if (parser.strict) {
-                        // Unexpected char in strict mode
-                        return Error.INVAL;
-                    } else {
-                        try parser.parsePrimitive(js, tokens);
-                        count += 1;
-                        if (parser.toksuper != -1 and tokens != null) {
-                            tokens.?[@intCast(usize, parser.toksuper)].size += 1;
-                        }
-                    }
+                    // Unexpected char
+                    return Error.INVAL;
                 },
             }
         }
@@ -197,10 +182,6 @@ pub const Parser = struct {
         found: {
             while (parser.pos < js.len and js[@intCast(usize, parser.pos)] != 0) : (parser.pos += 1) {
                 switch (js[@intCast(usize, parser.pos)]) {
-                    ':' => {
-                        // In strict mode primitive must be followed by "," or "}" or "]"
-                        if (!parser.strict) break :found;
-                    },
                     '\t', '\r', '\n', ' ', ',', ']', '}' => {
                         break :found;
                     },
@@ -214,11 +195,9 @@ pub const Parser = struct {
                     return Error.INVAL;
                 }
             }
-            if (parser.strict) {
-                // In strict mode primitive must be followed by a comma/object/array
-                parser.pos = start;
-                return Error.PART;
-            }
+            // Primitive must be followed by a comma/object/array
+            parser.pos = start;
+            return Error.PART;
         }
 
         if (tokens == null) {

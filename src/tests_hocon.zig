@@ -29,7 +29,7 @@ test "for comments" {
         .{ Type.PRIMITIVE, "2" },
         .{ Type.COMMENT, "field comment" },
         .{ Type.COMMENT, "  object  comment" },
-    }, false);
+    });
 
     const expected =
         \\{"key":"value","number":2}

@@ -7,12 +7,11 @@ const Error = hocon.Error;
 const Token = hocon.Token;
 const Type = hocon.Type;
 
-pub fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comptime result: anytype, strict: bool) anyerror!void {
+pub fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comptime result: anytype) anyerror!void {
     var tokens: [numtok]Token = undefined;
     var p: Parser = undefined;
 
     p.init();
-    p.strict = strict;
     const r = p.parse(json, &tokens);
     // if (r) |c| std.debug.print("{any}\n", .{tokens[0..c]}) else |_| {}
     try testing.expectEqual(status, r);
@@ -47,62 +46,62 @@ pub fn parse(json: []const u8, status: Error!usize, comptime numtok: usize, comp
 }
 
 test "for a empty JSON objects/arrays" {
-    try parse("{}", 1, 1, .{.{ Type.OBJECT, 0, 2, 0 }}, false);
-    try parse("[]", 1, 1, .{.{ Type.ARRAY, 0, 2, 0 }}, false);
-    try parse("[{},{}]", 3, 3, .{ .{ Type.ARRAY, 0, 7, 2 }, .{ Type.OBJECT, 1, 3, 0 }, .{ Type.OBJECT, 4, 6, 0 } }, false);
+    try parse("{}", 1, 1, .{.{ Type.OBJECT, 0, 2, 0 }});
+    try parse("[]", 1, 1, .{.{ Type.ARRAY, 0, 2, 0 }});
+    try parse("[{},{}]", 3, 3, .{ .{ Type.ARRAY, 0, 7, 2 }, .{ Type.OBJECT, 1, 3, 0 }, .{ Type.OBJECT, 4, 6, 0 } });
 }
 
 test "for a JSON objects" {
-    try parse("{\"a\":0}", 3, 3, .{ .{ Type.OBJECT, 0, 7, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.PRIMITIVE, "0" } }, false);
-    try parse("{\"a\":[]}", 3, 3, .{ .{ Type.OBJECT, 0, 8, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.ARRAY, 5, 7, 0 } }, false);
-    try parse("{\"a\":{},\"b\":{}}", 5, 5, .{ .{ Type.OBJECT, 0, 15, 2 }, .{ Type.STRING, "a", 1 }, .{ Type.OBJECT, -1, -1, 0 }, .{ Type.STRING, "b", 1 }, .{ Type.OBJECT, -1, -1, 0 } }, false);
-    try parse("{\n \"Day\": 26,\n \"Month\": 9,\n \"Year\": 12\n }", 7, 7, .{ .{ Type.OBJECT, -1, -1, 3 }, .{ Type.STRING, "Day", 1 }, .{ Type.PRIMITIVE, "26" }, .{ Type.STRING, "Month", 1 }, .{ Type.PRIMITIVE, "9" }, .{ Type.STRING, "Year", 1 }, .{ Type.PRIMITIVE, "12" } }, false);
-    try parse("{\"a\": 0, \"b\": \"c\"}", 5, 5, .{ .{ Type.OBJECT, -1, -1, 2 }, .{ Type.STRING, "a", 1 }, .{ Type.PRIMITIVE, "0" }, .{ Type.STRING, "b", 1 }, .{ Type.STRING, "c", 0 } }, false);
+    try parse("{\"a\":0}", 3, 3, .{ .{ Type.OBJECT, 0, 7, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.PRIMITIVE, "0" } });
+    try parse("{\"a\":[]}", 3, 3, .{ .{ Type.OBJECT, 0, 8, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.ARRAY, 5, 7, 0 } });
+    try parse("{\"a\":{},\"b\":{}}", 5, 5, .{ .{ Type.OBJECT, 0, 15, 2 }, .{ Type.STRING, "a", 1 }, .{ Type.OBJECT, -1, -1, 0 }, .{ Type.STRING, "b", 1 }, .{ Type.OBJECT, -1, -1, 0 } });
+    try parse("{\n \"Day\": 26,\n \"Month\": 9,\n \"Year\": 12\n }", 7, 7, .{ .{ Type.OBJECT, -1, -1, 3 }, .{ Type.STRING, "Day", 1 }, .{ Type.PRIMITIVE, "26" }, .{ Type.STRING, "Month", 1 }, .{ Type.PRIMITIVE, "9" }, .{ Type.STRING, "Year", 1 }, .{ Type.PRIMITIVE, "12" } });
+    try parse("{\"a\": 0, \"b\": \"c\"}", 5, 5, .{ .{ Type.OBJECT, -1, -1, 2 }, .{ Type.STRING, "a", 1 }, .{ Type.PRIMITIVE, "0" }, .{ Type.STRING, "b", 1 }, .{ Type.STRING, "c", 0 } });
 
-    try parse("{\"a\"\n0}", Error.INVAL, 3, .{}, true);
-    try parse("{\"a\", 0}", Error.INVAL, 3, .{}, true);
-    try parse("{\"a\": {2}}", Error.INVAL, 3, .{}, true);
-    try parse("{\"a\": {2: 3}}", Error.INVAL, 3, .{}, true);
-    try parse("{\"a\": {\"a\": 2 3}}", Error.INVAL, 5, .{}, true);
+    try parse("{\"a\"\n0}", Error.INVAL, 3, .{});
+    try parse("{\"a\", 0}", Error.INVAL, 3, .{});
+    try parse("{\"a\": {2}}", Error.INVAL, 3, .{});
+    try parse("{\"a\": {2: 3}}", Error.INVAL, 3, .{});
+    try parse("{\"a\": {\"a\": 2 3}}", Error.INVAL, 5, .{});
     // FIXME:
-    //try parse("{\"a\"}", Error.INVAL, 2, .{}, true);
-    //try parse("{\"a\": 1, \"b\"}", Error.INVAL, 4, .{}, true);
-    //try parse("{\"a\",\"b\":1}", Error.INVAL, 4, .{}, true);
-    //try parse("{\"a\":1,}", Error.INVAL, 4, .{}, true);
-    //try parse("{\"a\":\"b\":\"c\"}", Error.INVAL, 4, .{}, true);
-    //try parse("{,}", Error.INVAL, 4, .{}, true);
+    //try parse("{\"a\"}", Error.INVAL, 2, .{});
+    //try parse("{\"a\": 1, \"b\"}", Error.INVAL, 4, .{});
+    //try parse("{\"a\",\"b\":1}", Error.INVAL, 4, .{});
+    //try parse("{\"a\":1,}", Error.INVAL, 4, .{});
+    //try parse("{\"a\":\"b\":\"c\"}", Error.INVAL, 4, .{});
+    //try parse("{,}", Error.INVAL, 4, .{});
 }
 
 test "for a JSON arrays" {
     // FIXME:
-    //try parse("[10}", Error.INVAL, 3, .{}, false);
+    //try parse("[10}", Error.INVAL, 3, .{});
     //try parse("[1,,3]", Error.INVAL, 3);
-    try parse("[10]", 2, 2, .{ .{ Type.ARRAY, -1, -1, 1 }, .{ Type.PRIMITIVE, "10" } }, false);
-    try parse("{\"a\": 1]", Error.INVAL, 3, .{}, false);
+    try parse("[10]", 2, 2, .{ .{ Type.ARRAY, -1, -1, 1 }, .{ Type.PRIMITIVE, "10" } });
+    try parse("{\"a\": 1]", Error.INVAL, 3, .{});
     // FIXME:
-    //try parse("[\"a\": 1]", Error.INVAL, 3, .{}, false);
+    //try parse("[\"a\": 1]", Error.INVAL, 3, .{});
 }
 
 test "test primitive JSON data types" {
-    try parse("{\"boolVar\" : true }", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "boolVar", 1 }, .{ Type.PRIMITIVE, "true" } }, false);
-    try parse("{\"boolVar\" : false }", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "boolVar", 1 }, .{ Type.PRIMITIVE, "false" } }, false);
-    try parse("{\"nullVar\" : null }", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "nullVar", 1 }, .{ Type.PRIMITIVE, "null" } }, false);
-    try parse("{\"intVar\" : 12}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "intVar", 1 }, .{ Type.PRIMITIVE, "12" } }, false);
-    try parse("{\"floatVar\" : 12.345}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "floatVar", 1 }, .{ Type.PRIMITIVE, "12.345" } }, false);
+    try parse("{\"boolVar\" : true }", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "boolVar", 1 }, .{ Type.PRIMITIVE, "true" } });
+    try parse("{\"boolVar\" : false }", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "boolVar", 1 }, .{ Type.PRIMITIVE, "false" } });
+    try parse("{\"nullVar\" : null }", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "nullVar", 1 }, .{ Type.PRIMITIVE, "null" } });
+    try parse("{\"intVar\" : 12}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "intVar", 1 }, .{ Type.PRIMITIVE, "12" } });
+    try parse("{\"floatVar\" : 12.345}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "floatVar", 1 }, .{ Type.PRIMITIVE, "12.345" } });
 }
 
 test "test string JSON data types" {
-    try parse("{\"strVar\" : \"hello world\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "strVar", 1 }, .{ Type.STRING, "hello world", 0 } }, false);
-    try parse("{\"strVar\" : \"escapes: \\/\\r\\n\\t\\b\\f\\\"\\\\\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "strVar", 1 }, .{ Type.STRING, "escapes: \\/\\r\\n\\t\\b\\f\\\"\\\\", 0 } }, false);
-    try parse("{\"strVar\": \"\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "strVar", 1 }, .{ Type.STRING, "", 0 } }, false);
-    try parse("{\"a\":\"\\uAbcD\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.STRING, "\\uAbcD", 0 } }, false);
-    try parse("{\"a\":\"str\\u0000\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.STRING, "str\\u0000", 0 } }, false);
-    try parse("{\"a\":\"\\uFFFFstr\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.STRING, "\\uFFFFstr", 0 } }, false);
-    try parse("{\"a\":[\"\\u0280\"]}", 4, 4, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.ARRAY, -1, -1, 1 }, .{ Type.STRING, "\\u0280", 0 } }, false);
+    try parse("{\"strVar\" : \"hello world\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "strVar", 1 }, .{ Type.STRING, "hello world", 0 } });
+    try parse("{\"strVar\" : \"escapes: \\/\\r\\n\\t\\b\\f\\\"\\\\\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "strVar", 1 }, .{ Type.STRING, "escapes: \\/\\r\\n\\t\\b\\f\\\"\\\\", 0 } });
+    try parse("{\"strVar\": \"\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "strVar", 1 }, .{ Type.STRING, "", 0 } });
+    try parse("{\"a\":\"\\uAbcD\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.STRING, "\\uAbcD", 0 } });
+    try parse("{\"a\":\"str\\u0000\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.STRING, "str\\u0000", 0 } });
+    try parse("{\"a\":\"\\uFFFFstr\"}", 3, 3, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.STRING, "\\uFFFFstr", 0 } });
+    try parse("{\"a\":[\"\\u0280\"]}", 4, 4, .{ .{ Type.OBJECT, -1, -1, 1 }, .{ Type.STRING, "a", 1 }, .{ Type.ARRAY, -1, -1, 1 }, .{ Type.STRING, "\\u0280", 0 } });
 
-    try parse("{\"a\":\"str\\uFFGFstr\"}", Error.INVAL, 3, .{}, false);
-    try parse("{\"a\":\"str\\u@FfF\"}", Error.INVAL, 3, .{}, false);
-    try parse("{{\"a\":[\"\\u028\"]}", Error.INVAL, 4, .{}, false);
+    try parse("{\"a\":\"str\\uFFGFstr\"}", Error.INVAL, 3, .{});
+    try parse("{\"a\":\"str\\u@FfF\"}", Error.INVAL, 3, .{});
+    try parse("{{\"a\":[\"\\u028\"]}", Error.INVAL, 4, .{});
 }
 
 test "test partial JSON string parsing" {
@@ -111,9 +110,9 @@ test "test partial JSON string parsing" {
     comptime var i = 1;
     inline while (i <= js.len) : (i += 1) {
         if (i != js.len) {
-            try parse(js[0..i], Error.PART, 5, .{}, false);
+            try parse(js[0..i], Error.PART, 5, .{});
         } else {
-            try parse(js[0..i], 5, 5, .{ .{ Type.OBJECT, -1, -1, 2 }, .{ Type.STRING, "x", 1 }, .{ Type.STRING, "va\\\\ue", 0 }, .{ Type.STRING, "y", 1 }, .{ Type.STRING, "value y", 0 } }, false);
+            try parse(js[0..i], 5, 5, .{ .{ Type.OBJECT, -1, -1, 2 }, .{ Type.STRING, "x", 1 }, .{ Type.STRING, "va\\\\ue", 0 }, .{ Type.STRING, "y", 1 }, .{ Type.STRING, "value y", 0 } });
         }
     }
 }
@@ -124,9 +123,9 @@ test "test partial array reading" {
     comptime var i = 1;
     inline while (i <= js.len) : (i += 1) {
         if (i != js.len) {
-            try parse(js[0..i], Error.PART, 6, .{}, false);
+            try parse(js[0..i], Error.PART, 6, .{});
         } else {
-            try parse(js[0..i], 6, 6, .{ .{ Type.ARRAY, -1, -1, 3 }, .{ Type.PRIMITIVE, "1" }, .{ Type.PRIMITIVE, "true" }, .{ Type.ARRAY, -1, -1, 2 }, .{ Type.PRIMITIVE, "123" }, .{ Type.STRING, "hello", 0 } }, false);
+            try parse(js[0..i], 6, 6, .{ .{ Type.ARRAY, -1, -1, 3 }, .{ Type.PRIMITIVE, "1" }, .{ Type.PRIMITIVE, "true" }, .{ Type.ARRAY, -1, -1, 2 }, .{ Type.PRIMITIVE, "123" }, .{ Type.STRING, "hello", 0 } });
         }
     }
 }
@@ -137,9 +136,9 @@ test "test array reading with a smaller number of tokens" {
     comptime var i = 0;
     inline while (i < 10) : (i += 1) {
         if (i < 6) {
-            try parse(js, Error.NOMEM, i, .{}, false);
+            try parse(js, Error.NOMEM, i, .{});
         } else {
-            try parse(js, 6, i, .{ .{ Type.ARRAY, -1, -1, 3 }, .{ Type.PRIMITIVE, "1" }, .{ Type.PRIMITIVE, "true" }, .{ Type.ARRAY, -1, -1, 2 }, .{ Type.PRIMITIVE, "123" }, .{ Type.STRING, "hello", 0 } }, false);
+            try parse(js, 6, i, .{ .{ Type.ARRAY, -1, -1, 3 }, .{ Type.PRIMITIVE, "1" }, .{ Type.PRIMITIVE, "true" }, .{ Type.ARRAY, -1, -1, 2 }, .{ Type.PRIMITIVE, "123" }, .{ Type.STRING, "hello", 0 } });
         }
     }
 }
@@ -147,7 +146,7 @@ test "test array reading with a smaller number of tokens" {
 test "test unquoted keys (like in JavaScript)" {
     const js = "key1: \"value\"\nkey2 : 123";
 
-    try parse(js, 4, 4, .{ .{ Type.PRIMITIVE, "key1" }, .{ Type.STRING, "value", 0 }, .{ Type.PRIMITIVE, "key2" }, .{ Type.PRIMITIVE, "123" } }, false);
+    try parse(js, 4, 4, .{ .{ Type.PRIMITIVE, "key1" }, .{ Type.STRING, "value", 0 }, .{ Type.PRIMITIVE, "key2" }, .{ Type.PRIMITIVE, "123" } });
 }
 
 test "test issue #22" {
@@ -163,14 +162,14 @@ test "test issue #22" {
         \\ }],
         \\ "tilewidth":32, "version":1, "width":10 }
     ;
-    try parse(js, 61, 128, .{}, false);
+    try parse(js, 61, 128, .{});
 }
 
 test "test issue #27" {
     const js =
         "{ \"name\" : \"Jack\", \"age\" : 27 } { \"name\" : \"Anna\", ";
 
-    try parse(js, Error.PART, 8, .{}, false);
+    try parse(js, Error.PART, 8, .{});
 }
 
 test "test tokens count estimation" {
@@ -179,81 +178,81 @@ test "test tokens count estimation" {
 
     js = "{}";
     p.init();
-    try parse(js, 1, 10, .{}, false);
+    try parse(js, 1, 10, .{});
 
     js = "[]";
     p.init();
-    try parse(js, 1, 10, .{}, false);
+    try parse(js, 1, 10, .{});
 
     js = "[[]]";
     p.init();
-    try parse(js, 2, 10, .{}, false);
+    try parse(js, 2, 10, .{});
 
     js = "[[], []]";
     p.init();
-    try parse(js, 3, 10, .{}, false);
+    try parse(js, 3, 10, .{});
 
     js = "[[], []]";
     p.init();
-    try parse(js, 3, 10, .{}, false);
+    try parse(js, 3, 10, .{});
 
     js = "[[], [[]], [[], []]]";
     p.init();
-    try parse(js, 7, 10, .{}, false);
+    try parse(js, 7, 10, .{});
 
     js = "[\"a\", [[], []]]";
     p.init();
-    try parse(js, 5, 10, .{}, false);
+    try parse(js, 5, 10, .{});
 
     js = "[[], \"[], [[]]\", [[]]]";
     p.init();
-    try parse(js, 5, 10, .{}, false);
+    try parse(js, 5, 10, .{});
 
     js = "[1, 2, 3]";
     p.init();
-    try parse(js, 4, 10, .{}, false);
+    try parse(js, 4, 10, .{});
 
     js = "[1, 2, [3, \"a\"], null]";
     p.init();
-    try parse(js, 7, 10, .{}, false);
+    try parse(js, 7, 10, .{});
 }
 
 test "for non-strict mode" {
     var js: []const u8 = "a: 0garbage";
-    try parse(js, 2, 2, .{ .{ Type.PRIMITIVE, "a" }, .{ Type.PRIMITIVE, "0garbage" } }, false);
+    try parse(js, 2, 2, .{ .{ Type.PRIMITIVE, "a" }, .{ Type.PRIMITIVE, "0garbage" } });
 
     js = "Day : 26\nMonth : Sep\n\nYear: 12";
-    try parse(js, 6, 6, .{ .{ Type.PRIMITIVE, "Day" }, .{ Type.PRIMITIVE, "26" }, .{ Type.PRIMITIVE, "Month" }, .{ Type.PRIMITIVE, "Sep" }, .{ Type.PRIMITIVE, "Year" }, .{ Type.PRIMITIVE, "12" } }, false);
+    try parse(js, 6, 6, .{ .{ Type.PRIMITIVE, "Day" }, .{ Type.PRIMITIVE, "26" }, .{ Type.PRIMITIVE, "Month" }, .{ Type.PRIMITIVE, "Sep" }, .{ Type.PRIMITIVE, "Year" }, .{ Type.PRIMITIVE, "12" } });
 
     // nested {s don't cause a parse error.
     js = "\"key {1\": 1234";
-    try parse(js, 2, 2, .{ .{ Type.STRING, "key {1", 1 }, .{ Type.PRIMITIVE, "1234" } }, false);
+    try parse(js, 2, 2, .{ .{ Type.STRING, "key {1", 1 }, .{ Type.PRIMITIVE, "1234" } });
 }
 
 test "for unmatched brackets" {
     var js: []const u8 = "\"key 1\": 1234}";
-    try parse(js, Error.INVAL, 2, .{}, false);
+    try parse(js, Error.INVAL, 2, .{});
     js = "{\"key 1\": 1234";
-    try parse(js, Error.PART, 3, .{}, false);
+    try parse(js, Error.PART, 3, .{});
     js = "{\"key 1\": 1234}}";
-    try parse(js, Error.INVAL, 3, .{}, false);
+    try parse(js, Error.INVAL, 3, .{});
     js = "\"key 1\"}: 1234";
-    try parse(js, Error.INVAL, 3, .{}, false);
+    try parse(js, Error.INVAL, 3, .{});
     js = "{\"key {1\": 1234}";
-    try parse(js, 3, 3, .{ .{ Type.OBJECT, 0, 16, 1 }, .{ Type.STRING, "key {1", 1 }, .{ Type.PRIMITIVE, "1234" } }, false);
+    try parse(js, 3, 3, .{ .{ Type.OBJECT, 0, 16, 1 }, .{ Type.STRING, "key {1", 1 }, .{ Type.PRIMITIVE, "1234" } });
     js = "{\"key 1\":{\"key 2\": 1234}";
-    try parse(js, Error.PART, 5, .{}, false);
+    try parse(js, Error.PART, 5, .{});
 }
 
 test "for key type" {
     var js: []const u8 = "{\"key\": 1}";
-    try parse(js, 3, 3, .{ .{ Type.OBJECT, 0, 10, 1 }, .{ Type.STRING, "key", 1 }, .{ Type.PRIMITIVE, "1" } }, true);
+    try parse(js, 3, 3, .{ .{ Type.OBJECT, 0, 10, 1 }, .{ Type.STRING, "key", 1 }, .{ Type.PRIMITIVE, "1" } });
     js = "{true: 1}";
-    try parse(js, Error.INVAL, 3, .{}, true);
+    try parse(js, Error.INVAL, 3, .{});
     js = "{1: 1}";
-    try parse(js, Error.INVAL, 3, .{}, true);
+    try parse(js, Error.INVAL, 3, .{});
     js = "{{\"key\": 1}: 2}";
-    try parse(js, Error.INVAL, 5, .{}, true);
+    try parse(js, Error.INVAL, 5, .{});
     js = "{[1,2]: 2}";
-    try parse(js, Error.INVAL, 5, .{}, true);
+    try parse(js, Error.INVAL, 5, .{});
 }
